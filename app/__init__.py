@@ -8,12 +8,15 @@ from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, get_jwt_identity, verify_jwt_in_request, exceptions
 from config import Config
+from flask_mail import Mail
+from itsdangerous import URLSafeTimedSerializer
 
 db = SQLAlchemy()
 migrate = Migrate()
 bcrypt = Bcrypt()
 jwt = JWTManager()
-
+mail = Mail()
+serializer = URLSafeTimedSerializer(Config.ITS_DANGEROUS_SECRECT_KEY)
 
 def get_locale():
     try:
@@ -32,7 +35,7 @@ def create_app():
     app = Flask(__name__)
     babel = Babel(app)
     app.config.from_object(Config)
-
+    mail.init_app(app)
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
@@ -45,8 +48,9 @@ def create_app():
     from app.routes import register_blueprints
     register_blueprints(app)
 
-    from app.models import User, Client
-
+    with app.app_context():
+        from app.models import User, Client, Company, IndividualPosition, CompanyCategory, Token
+        db.create_all()
     # Registro de manejadores de errores
     register_error_handlers(app)
 
