@@ -49,7 +49,21 @@ def create_app():
     register_blueprints(app)
 
     with app.app_context():
-        from app.models import User, Client, Company, IndividualPosition, CompanyCategory, Token
+        from app.models import (
+            User,
+            Client,
+            Company,
+            IndividualPosition,
+            CompanyCategory,
+            Token,
+            currency,
+            Quotation,
+            QuotationItem,
+            Invoice,
+            InvoiceItem,
+            InvoiceConfig,
+            QuoteConfig
+        )
         db.create_all()
     # Registro de manejadores de errores
     register_error_handlers(app)

@@ -1,6 +1,8 @@
 # /app/utils/validators.py
+import bleach
 import re
 from sqlalchemy.orm import validates
+import datetime
 
 def validate_phone_prefix(prefix):
     # Asegura que el prefijo comienza con un '+' opcional seguido de dígitos
@@ -33,3 +35,58 @@ def validate_full_phone_number(instance, key, value):
 def validate_email(email):
     assert re.match(r"[^@]+@[^@]+\.[^@]+", email), "Invalid email address"
     return email
+
+
+# Función de validación de HTML
+ALLOWED_TAGS = ['b', 'i', 'u', 'a', 'p', 'ul', 'ol', 'li', 'br', 'span', 'div']
+ALLOWED_ATTRIBUTES = {
+    'a': ['href', 'title'],
+    'span': ['style'],
+    'div': ['style']
+}
+
+def validate_and_clean_html(html_content):
+    """
+    Limpia y valida contenido HTML permitiendo solo ciertas etiquetas y atributos.
+    """
+    return bleach.clean(html_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+
+
+def generate_number(config_type, company_id):
+    from app import db
+    from app.models import InvoiceConfig, QuoteConfig
+    
+    """
+    Función genérica para generar números de invoice o quote.
+    :param config_type: Tipo de configuración ('invoice' o 'quote')
+    :param company_id: ID de la compañía
+    :return: Número generado y la moneda por defecto
+    """
+    if config_type == 'invoice':
+        config = InvoiceConfig.query.filter_by(company_id=company_id).first()
+    elif config_type == 'quote':
+        config = QuoteConfig.query.filter_by(company_id=company_id).first()
+    else:
+        raise ValueError("config_type must be 'invoice' or 'quote'")
+
+    if not config:
+        raise Exception(f"No {config_type} configuration found for the company.")
+
+    current_year = datetime.datetime.now().year
+    current_month = datetime.datetime.now().month
+
+    number_parts = []
+    if config.prefix:
+        number_parts.append(config.prefix)
+    if config.use_year:
+        number_parts.append(str(current_year))
+    if config.use_month:
+        number_parts.append(f'{current_month:02d}')
+    number_parts.append(f'{config.sequential_number:04d}')
+    if config.suffix:
+        number_parts.append(config.suffix)
+
+    config.sequential_number += 1
+    db.session.commit()
+
+    return '-'.join(number_parts), config.currency_id
